@@ -11,9 +11,9 @@ import json
 from datetime import date, datetime, time, timedelta, timezone
 from pymongo import MongoClient
 import html2text
-import mongo_service as mongodb
+import src.mongo_service as mongodb
 from msal import PublicClientApplication, SerializableTokenCache
-from auth import AuthManager
+from src.auth import AuthManager
 import logging
 
 load_dotenv()

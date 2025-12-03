@@ -1,4 +1,4 @@
-from outlook_api import OutlookAPI
+from src.outlook_api import OutlookAPI
 from datetime import date, datetime, timedelta, timezone
 import time
 import logging

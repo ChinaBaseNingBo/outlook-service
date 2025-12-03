@@ -4,7 +4,7 @@ import logging
 from flask import Flask, jsonify, request
 from app.api.outlook_service.auth import AuthManager
 from app.api.outlook_service.service import OutlookService
-from outlook_api import OutlookAPI
+from src.outlook_api import OutlookAPI
 
 app = Flask(__name__)
 auth_manager = AuthManager()
