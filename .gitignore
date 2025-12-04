@@ -1,0 +1,5 @@
+.env
+__pycache__/
+.venv/
+ssl.key
+ssl.pem
