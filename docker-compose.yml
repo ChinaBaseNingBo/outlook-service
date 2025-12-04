@@ -3,11 +3,11 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
-    environment:
+    env_file:
       - .env
 
     container_name: outlook_app
-    command: python src/app.py
+    command: python -m src.app
     expose:
       - "8000"
 
