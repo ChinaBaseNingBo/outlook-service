@@ -1,15 +1,22 @@
 import os
 import threading
 import logging
+import sys
 from flask import Flask, jsonify, request
-from app.api.outlook_service.auth import AuthManager
-from app.api.outlook_service.service import OutlookService
+from src.auth import AuthManager
+from src.service import OutlookService
 from src.outlook_api import OutlookAPI
 
 app = Flask(__name__)
 auth_manager = AuthManager()
 outlook_api = OutlookAPI(auth=auth_manager)
 outlook_service = OutlookService(outlook_api=outlook_api)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 
 @app.route('/')
 def home():
