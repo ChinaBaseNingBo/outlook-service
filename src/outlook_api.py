@@ -15,6 +15,7 @@ import src.mongo_service as mongodb
 from msal import PublicClientApplication, SerializableTokenCache
 from src.auth import AuthManager
 import logging
+import sys
 
 load_dotenv()
 OUTLOOK_CLIENT_ID = os.getenv("OUTLOOK_CLIENT_ID")
@@ -23,6 +24,11 @@ AUTHORITY = "https://login.microsoftonline.com/consumers"
 SCOPES = ["Mail.Read", "User.Read"]
 CACHE_FILE = "msal_cache.bin"
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 
 def iso_z(dt: datetime) -> str:
     """Format a tz-aware datetime as ISO-8601 with trailing Z."""
