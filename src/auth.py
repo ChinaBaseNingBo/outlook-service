@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import logging
 import json
 from msal import PublicClientApplication, SerializableTokenCache
+import sys
 
 load_dotenv()
 OUTLOOK_CLIENT_ID = os.getenv("OUTLOOK_CLIENT_ID")
@@ -10,6 +11,12 @@ OUTLOOK_URL = "https://graph.microsoft.com/v1.0/" # Used API version 1.0
 AUTHORITY = "https://login.microsoftonline.com/consumers"
 SCOPES = ["Mail.Read", "User.Read"]
 CACHE_FILE = "msal_cache.bin"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 
 class AuthManager:
     def __init__(self):
