@@ -50,15 +50,22 @@ class OutlookAPI:
         response = requests.get(url, headers=self._auth_headers())
         return response.json()
 
-    def get_user_bloomberg_folder_id(self):
+    def get_user_folder_ids(self):
         url = f"{OUTLOOK_URL}/me/mailFolders"
         response = requests.get(url, headers=self._auth_headers())
         folders = response.json().get('value', [])
+        folder_ids = []
         for folder in folders:
-            if folder.get('displayName') == 'Bloomberg':
-                return folder.get('id')
-        return None
+
+            # TODO Check the folder name
+
+            if folder.get('displayName') == 'Bloomberg' or folder.get('displayName') == 'Shuchuang':
+                folder_ids.append(folder.get('id'))
+
+            # TODO Check this line
+        return folder_ids if len(folder_ids) != 0 else None
     
+
     def get_email_by_resource(self, resource):
         """
         Fetch email details using the resource URL from notification
@@ -70,13 +77,12 @@ class OutlookAPI:
         response.raise_for_status()
         return response.json()
 
-    def subscribe_outlook_webhook(self, callback_url):
+    def subscribe_single_outlook_webhook(self, callback_url, folder_id): # Changed
         """
         Subscribe to Outlook webhook notifications
         callback_url: The URL of AWS EC2 instance to receive notifications
         """
         url = f"{OUTLOOK_URL}/subscriptions"
-        folder_id = self.get_user_bloomberg_folder_id()
         data = {
             "changeType": "created,updated",
             "notificationUrl": callback_url,
@@ -86,6 +92,12 @@ class OutlookAPI:
         }
         response = requests.post(url, headers=self._auth_headers(), json=data)
         return response.json()
+    
+    def subscribe_outlook_webhook(self, callback_url): # Changed
+        folder_ids = self.get_user_folder_ids
+        for folder_id in folder_ids:
+            response = self.subscribe_single_outlook_webhook(callback_url, folder_id)
+            logging.info(f"Subscribe successfully to {folder_id}, getting response {response}.")
     
     def patch_subscription_expiration(self, subscription_id):
         """
