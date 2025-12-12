@@ -56,13 +56,9 @@ class OutlookAPI:
         folders = response.json().get('value', [])
         folder_ids = []
         for folder in folders:
-
-            # TODO Check the folder name
-
             if folder.get('displayName') == 'Bloomberg' or folder.get('displayName') == 'Shuchuang':
                 folder_ids.append(folder.get('id'))
-
-            # TODO Check this line
+                
         return folder_ids if len(folder_ids) != 0 else None
     
 
@@ -79,7 +75,7 @@ class OutlookAPI:
 
     def subscribe_single_outlook_webhook(self, callback_url, folder_id): # Changed
         """
-        Subscribe to Outlook webhook notifications
+        Subscribe to Outlook webhook notifications for a single folder
         callback_url: The URL of AWS EC2 instance to receive notifications
         """
         url = f"{OUTLOOK_URL}/subscriptions"
@@ -94,7 +90,18 @@ class OutlookAPI:
         return response.json()
     
     def subscribe_outlook_webhook(self, callback_url): # Changed
-        folder_ids = self.get_user_folder_ids
+        """
+        Docstring for subscribe_outlook_webhook for multiple folders
+        
+        :param self: Description
+        :param callback_url: Description
+        """
+        folder_ids = self.get_user_folder_ids()
+        
+        if (not folder_ids):
+            logging.error("No target folders found for subscription.")
+            return None
+        
         for folder_id in folder_ids:
             response = self.subscribe_single_outlook_webhook(callback_url, folder_id)
             logging.info(f"Subscribe successfully to {folder_id}, getting response {response}.")
@@ -111,24 +118,29 @@ class OutlookAPI:
         response = requests.patch(url, headers=self._auth_headers(), json=data)
         return response.json()
         
-    def get_bloomberg_emails_by_range(self, start, end):
-        folder_id = self.get_user_bloomberg_folder_id()
-        if not folder_id:
-            print("Bloomberg folder not found")
+    def get_targeted_emails_by_range_mailfolders(self, start, end, folder_id=None):
+        folder_ids = self.get_user_folder_ids() if not folder_id else folder_id
+        if not folder_ids:
+            logging.error("No target folder found for fetching emails.")
             return []
-
-        url = f"{OUTLOOK_URL}/me/mailFolders/{folder_id}/messages"
-        params = {
-            "$select": "id,subject,receivedDateTime,bodyPreview,body,from",
-            "$orderby": "receivedDateTime desc",
-            "$top": 50,
-            "$filter": (
-                f"receivedDateTime ge {iso_z(start)} "
-                f"and receivedDateTime lt {iso_z(end)}"
-            ),
-        }
-        response = requests.get(url, headers=self._auth_headers(), params=params)
-        return response.json().get('value', [])
+        
+        emails = []
+        
+        for folder_id in folder_ids:  
+            url = f"{OUTLOOK_URL}/me/mailFolders/{folder_id}/messages"
+            params = {
+                "$select": "id,subject,receivedDateTime,bodyPreview,body,from",
+                "$orderby": "receivedDateTime desc",
+                "$top": 50,
+                "$filter": (
+                    f"receivedDateTime ge {iso_z(start)} "
+                    f"and receivedDateTime lt {iso_z(end)}"
+                ),
+            }
+            response = requests.get(url, headers=self._auth_headers(), params=params)
+            emails.append(response.json().get('value', []))
+            
+        return emails
 
     @staticmethod
     def html_to_markdown(html):
@@ -138,19 +150,37 @@ class OutlookAPI:
         h.body_width = 0
         return h.handle(html)
     
+    def get_attachment_id_by_email_id(self, email_id):
+        url = f"{OUTLOOK_URL}/me/messages/{email_id}/attachments"
+        response = requests.get(url, headers=self._auth_headers())
+        return response.json().get('value', [])[0].get('id')
+    
+    def download_attachment_by_id(self, email_id, attachment_id):
+        url = f"{OUTLOOK_URL}/me/messages/{email_id}/attachments/{attachment_id}/$value"
+        response = requests.get(url, headers=self._auth_headers())
+        return response.content
+    
     def process_emails(self, emails):
         processed_emails = []
         for email in emails:
-            raw_time = email.get("receivedDateTime")
-            dt = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
-            
-            processed_email = {
-                "id": email.get("id"),
-                "subject": email.get("subject"),
-                "body": self.html_to_markdown(email.get("body", {}).get("content")),
-                "time": dt,
-                "from": email.get("from", {}).get("emailAddress", {}).get("address"),
-            }
+            if email.get("categories")[0] == "Blue Category":
+                email_id = email.get("id")
+                attachment_id = self.get_attachment_id_by_email_id(email_id)
+                attachment_content = self.download_attachment_by_id(email_id, attachment_id)
+                # TODO Further processing of attachment_content can be done here
+                
+                continue
+            elif email.get("categories")[0] == "Green Category":
+                raw_time = email.get("receivedDateTime")
+                dt = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
+                
+                processed_email = {
+                    "id": email.get("id"),
+                    "subject": email.get("subject"),
+                    "body": self.html_to_markdown(email.get("body", {}).get("content")),
+                    "time": dt,
+                    "from": email.get("from", {}).get("emailAddress", {}).get("address"),
+                }
             processed_emails.append(processed_email)
         return processed_emails
     
