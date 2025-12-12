@@ -3,19 +3,16 @@ Outlook API uses Microsoft Graph to fetch emails and events.
 url = "https://developer.microsoft.com/en-us/graph/graph-explorer"
 Token is generated via graph explorer.
 '''
-from urllib import response
 import requests
 import os
 from dotenv import load_dotenv
-import json
-from datetime import date, datetime, time, timedelta, timezone
-from pymongo import MongoClient
+from datetime import datetime, timedelta, timezone
 import html2text
 import src.mongo_service as mongodb
-from msal import PublicClientApplication, SerializableTokenCache
 from src.auth import AuthManager
 import logging
 import sys
+import base64
 
 load_dotenv()
 OUTLOOK_CLIENT_ID = os.getenv("OUTLOOK_CLIENT_ID")
@@ -91,10 +88,8 @@ class OutlookAPI:
     
     def subscribe_outlook_webhook(self, callback_url): # Changed
         """
-        Docstring for subscribe_outlook_webhook for multiple folders
-        
-        :param self: Description
-        :param callback_url: Description
+        Subscribe outlook webhooks for multiple folders
+        callback_url: The URL of AWS EC2 instance to receive notifications
         """
         folder_ids = self.get_user_folder_ids()
         
@@ -117,7 +112,110 @@ class OutlookAPI:
         }
         response = requests.patch(url, headers=self._auth_headers(), json=data)
         return response.json()
+
+    @staticmethod
+    def html_to_markdown(html):
+        h = html2text.HTML2Text()
+        h.ignore_images = True
+        h.ignore_emphasis = False
+        h.body_width = 0
+        return h.handle(html)
+    
+    def process_emails(self, emails):
+        """
+        Process emails based on categories
+        emails: list of email JSON objects
         
+        return: dict of processed emails
+        """
+        processed_emails = {
+            "bloomberg_emails": [],
+            "shuchuang_emails": [],
+        }
+        for email in emails:
+            if email.get("categories")[0] == "Blue Category":
+                email_id = email.get("id")
+                attachment = self.get_attachment_by_email_id(email_id)
+                process_attachment = self.process_attachment_from_email(attachment[0]) if attachment else None
+                processed_emails["shuchuang_emails"].append(process_attachment)
+            elif email.get("categories")[0] == "Green Category":
+                processed_email = self.process_message_from_email(email)
+                processed_emails["bloomberg_emails"].append(processed_email)
+        return processed_emails
+    
+    def save_emails_to_db(self, emails):
+        processed_emails = self.process_emails(emails)
+        # print("Processed Emails:", json.dumps(processed_emails, default=str, indent=2))
+        
+        mongodb_client = mongodb.MongoDBClient(mongodb.MONGO_URI, mongodb.MONGO_DB_NAME)
+        inserted_bloomberg = 0
+        inserted_shuchuang = 0
+        
+        try:
+            shuchuang_attachments = processed_emails["shuchuang_emails"]
+            if shuchuang_attachments:
+                inserted_shuchuang = mongodb_client.save_shuchuang_attachments_to_db(shuchuang_attachments)
+        
+            bloomberg_emails = processed_emails["bloomberg_emails"]
+            if bloomberg_emails:
+                inserted_bloomberg = mongodb_client.save_bloomberg_emails_to_db(bloomberg_emails)
+            
+            inserted_count = inserted_shuchuang + inserted_bloomberg
+            logging.info("Saved %d emails to MongoDB.", inserted_count)
+            return inserted_count
+        finally:
+            mongodb_client.client.close()
+    
+    def get_attachment_by_email_id(self, email_id):
+        url = f"{OUTLOOK_URL}/me/messages/{email_id}/attachments"
+        response = requests.get(url, headers=self._auth_headers())
+        logging.info(response.raise_for_status())
+        return response.json().get('value', [])
+    
+    def process_message_from_email(self, email):
+        """
+        Process the plain body of email message
+        email: email JSON object
+        """
+        raw_time = email.get("receivedDateTime")
+        dt = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
+        
+        processed_email = {
+            "id": email.get("id"),
+            "subject": email.get("subject"),
+            "body": self.html_to_markdown(email.get("body", {}).get("content")),
+            "time": dt,
+            "from": email.get("from", {}).get("emailAddress", {}).get("address"),
+        }
+        return processed_email
+    
+    def process_attachment_from_email(self, attachment):
+        """
+        Process the attachment content of email
+        attachment: attachment JSON object
+        
+        return: decoded content bytes
+        """
+        raw_time = attachment.get("lastModifiedDateTime")
+        dt = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
+        id = attachment.get("id")
+        name = attachment.get("name")
+        content_type = attachment.get("contentType")
+        content_bytes = attachment.get("contentBytes")
+        
+        if content_bytes:
+            content = base64.b64decode(content_bytes)
+            
+            processed_attachment = {
+                "id": id,
+                "name": name,
+                "time": dt,
+                "content_type": content_type,
+                "content": content,
+            }
+            return processed_attachment
+        return None
+
     def get_targeted_emails_by_range_mailfolders(self, start, end, folder_id=None):
         folder_ids = self.get_user_folder_ids() if not folder_id else folder_id
         if not folder_ids:
@@ -141,55 +239,3 @@ class OutlookAPI:
             emails.append(response.json().get('value', []))
             
         return emails
-
-    @staticmethod
-    def html_to_markdown(html):
-        h = html2text.HTML2Text()
-        h.ignore_images = True
-        h.ignore_emphasis = False
-        h.body_width = 0
-        return h.handle(html)
-    
-    def get_attachment_id_by_email_id(self, email_id):
-        url = f"{OUTLOOK_URL}/me/messages/{email_id}/attachments"
-        response = requests.get(url, headers=self._auth_headers())
-        return response.json().get('value', [])[0].get('id')
-    
-    def download_attachment_by_id(self, email_id, attachment_id):
-        url = f"{OUTLOOK_URL}/me/messages/{email_id}/attachments/{attachment_id}/$value"
-        response = requests.get(url, headers=self._auth_headers())
-        return response.content
-    
-    def process_emails(self, emails):
-        processed_emails = []
-        for email in emails:
-            if email.get("categories")[0] == "Blue Category":
-                email_id = email.get("id")
-                attachment_id = self.get_attachment_id_by_email_id(email_id)
-                attachment_content = self.download_attachment_by_id(email_id, attachment_id)
-                # TODO Further processing of attachment_content can be done here
-                
-                continue
-            elif email.get("categories")[0] == "Green Category":
-                raw_time = email.get("receivedDateTime")
-                dt = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
-                
-                processed_email = {
-                    "id": email.get("id"),
-                    "subject": email.get("subject"),
-                    "body": self.html_to_markdown(email.get("body", {}).get("content")),
-                    "time": dt,
-                    "from": email.get("from", {}).get("emailAddress", {}).get("address"),
-                }
-            processed_emails.append(processed_email)
-        return processed_emails
-    
-    def save_emails_to_db(self, emails):
-        processed_emails = self.process_emails(emails)
-        # print("Processed Emails:", json.dumps(processed_emails, default=str, indent=2))
-        
-        mongodb_client = mongodb.MongoDBClient(mongodb.MONGO_URI, mongodb.MONGO_DB_NAME)
-        inserted_count = mongodb_client.save_bloomberg_emails_to_db(processed_emails)
-        logging.info("Saved %d emails to MongoDB.", inserted_count)
-        mongodb_client.client.close()
-        return inserted_count
