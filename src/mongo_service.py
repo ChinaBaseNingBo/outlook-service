@@ -3,11 +3,14 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
 import logging
+import gridfs
 
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
-BLOOMBERG_COLLECTION_NAME = os.getenv("MONGO_COLLECTION_BLOOMBERG") # Collection for Bloomberg_API
+BLOOMBERG_COLLECTION_NAME = os.getenv("MONGO_COLLECTION_BLOOMBERG") # Collection for Bloomberg
+SHUCHUANG_COLLECTION_NAME = os.getenv("MONGO_COLLECTION_SHUCHUANG") # Collection for Shuchuang
+SHUCHUANG_FS_COLLECTION_NAME = os.getenv("MONGO_COLLECTION_SHUCHUANG_FS") # GridFS collection for Shuchuang attachments
 
 class MongoDBClient:
     def __init__(self, uri, db_name):
@@ -67,6 +70,46 @@ class MongoDBClient:
         except Exception as e:
             # Short, actionable error
             raise RuntimeError(f"save_bloomberg_emails_to_db error: {type(e).__name__}: {e}") from None
+        
     
+    def save_shuchuang_attachments_to_db(self, attachments):
+        """Save Shuchuang attachments to MongoDB"""
+        if not attachments:
+            return 0
+        collection = self.get_mongo_collection(SHUCHUANG_COLLECTION_NAME)
+        db = collection.database
+        fs = gridfs.GridFS(db, collection=SHUCHUANG_FS_COLLECTION_NAME)
+        inserted = 0
+
+        for attachment in attachments:
+            id = attachment.get("id")
+            attachment_content = attachment.get("content")
+            filename = attachment.get("name")
+            content_type = attachment.get("content_type")
+            time = attachment.get("time")
+            
+            if not id:
+                continue
+            
+            gridfs_id = fs.put(
+                attachment_content,
+                filename=filename,
+                contentType=content_type,
+                messageId=str(id)
+            )
+            
+            attachment_doc = {
+                "_id": str(id),
+                "filename": filename,
+                "contentType": content_type,
+                "gridfs_id": gridfs_id,
+                "time": time,
+            }
+            collection.insert_one(attachment_doc)
+            inserted += 1
+
+        logging.info("Inserted %d new attachments (skipped duplicates).", inserted)
+        return inserted
+
     def close_connection(self):
         self.client.close()
