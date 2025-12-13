@@ -75,6 +75,12 @@ Start:
 docker-compose up -d --build
 ```
 
+Login:
+
+```bash
+docker-compose logs app
+```
+
 Your webhook receiving URL becomes:
 
 ```
