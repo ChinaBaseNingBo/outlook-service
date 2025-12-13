@@ -88,6 +88,10 @@ class MongoDBClient:
             content_type = attachment.get("content_type")
             time = attachment.get("time")
             
+            if collection.find_one({"_id": str(id)}):
+                logging.info("Attachment with id %s already exists. Skipping.", id)
+                continue
+            
             if not id:
                 continue
             
