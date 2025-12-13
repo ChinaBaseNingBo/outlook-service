@@ -137,12 +137,13 @@ class OutlookAPI:
             "shuchuang_emails": [],
         }
         for email in emails:
-            if email.get("categories")[0] == "Blue Category":
+            cats = email.get("categories", [])
+            if "Blue Category" in cats:
                 email_id = email.get("id")
                 attachment = self.get_attachment_by_email_id(email_id)
                 process_attachment = self.process_attachment_from_email(attachment[0]) if attachment else None
                 processed_emails["shuchuang_emails"].append(process_attachment)
-            elif email.get("categories")[0] == "Green Category":
+            elif "Green Category" in cats:
                 processed_email = self.process_message_from_email(email)
                 processed_emails["bloomberg_emails"].append(processed_email)
         return processed_emails
