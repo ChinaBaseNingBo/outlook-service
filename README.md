@@ -72,7 +72,7 @@ vim .env   # <-- insert real values
 Start:
 
 ```bash
-docker compose up -d --build
+docker-compose up -d --build
 ```
 
 Your webhook receiving URL becomes:
