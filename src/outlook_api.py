@@ -90,16 +90,20 @@ class OutlookAPI:
         """
         Subscribe outlook webhooks for multiple folders
         callback_url: The URL of AWS EC2 instance to receive notifications
+        
+        return: list of subscription responses
         """
         folder_ids = self.get_user_folder_ids()
         
         if (not folder_ids):
             logging.error("No target folders found for subscription.")
-            return None
-        
+            return []
+        subs = []
         for folder_id in folder_ids:
             response = self.subscribe_single_outlook_webhook(callback_url, folder_id)
             logging.info(f"Subscribe successfully to {folder_id}, getting response {response}.")
+            subs.append(response)
+        return subs
     
     def patch_subscription_expiration(self, subscription_id):
         """
