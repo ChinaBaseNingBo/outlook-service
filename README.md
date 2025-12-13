@@ -45,6 +45,16 @@ outlook-service/
 
 📌 `.env` is not committed — credentials remain private locally and on EC2 only.
 
+env.exemple:
+
+OUTLOOK_CLIENT_ID = <OUTLOOKDCLIENTID>
+
+MONGO_URI = <MONGOURI>
+MONGO_COLLECTION_BLOOMBERG = <BLOOMBERGCOLLECTION>
+MONGO_COLLECTION_SHUCHUANG = <SHUCHUANGCOLLECTION>
+MONGO_COLLECTION_SHUCHUANG_FS = <SHUCHUANGFSCOLLECTION>
+PUBLIC_BASE_URL= <PUBLICBASEURL>
+
 ---
 
 ## 🐳 Local Development with Docker
