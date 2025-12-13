@@ -46,7 +46,7 @@ class OutlookService:
         subscription_id: The ID of the subscription to extend (if any)
         """
         subs = self.create_subscription(callback_url)
-        logging.info("Created subscription: %s", sub)
+        logging.info("Created subscription: %s", subs)
         last_subscription = subs[0]
         while True:
             exp_str = last_subscription.get("expirationDateTime")
