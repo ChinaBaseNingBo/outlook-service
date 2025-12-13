@@ -70,7 +70,7 @@ class OutlookAPI:
         response.raise_for_status()
         return response.json()
 
-    def subscribe_single_outlook_webhook(self, callback_url, folder_id): # Changed
+    def subscribe_single_outlook_webhook(self, callback_url, folder_id):
         """
         Subscribe to Outlook webhook notifications for a single folder
         callback_url: The URL of AWS EC2 instance to receive notifications
@@ -86,7 +86,7 @@ class OutlookAPI:
         response = requests.post(url, headers=self._auth_headers(), json=data)
         return response.json()
     
-    def subscribe_outlook_webhook(self, callback_url): # Changed
+    def subscribe_outlook_webhook(self, callback_url):
         """
         Subscribe outlook webhooks for multiple folders
         callback_url: The URL of AWS EC2 instance to receive notifications
@@ -138,12 +138,12 @@ class OutlookAPI:
         }
         for email in emails:
             cats = email.get("categories", [])
-            if "Blue Category" in cats:
+            if "Blue category" in cats:
                 email_id = email.get("id")
                 attachment = self.get_attachment_by_email_id(email_id)
                 process_attachment = self.process_attachment_from_email(attachment[0]) if attachment else None
                 processed_emails["shuchuang_emails"].append(process_attachment)
-            elif "Green Category" in cats:
+            elif "Green category" in cats:
                 processed_email = self.process_message_from_email(email)
                 processed_emails["bloomberg_emails"].append(processed_email)
         return processed_emails
