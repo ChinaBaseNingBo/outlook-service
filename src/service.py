@@ -45,9 +45,9 @@ class OutlookService:
         callback_url: The URL to receive notifications
         subscription_id: The ID of the subscription to extend (if any)
         """
-        sub = self.create_subscription(callback_url)
+        subs = self.create_subscription(callback_url)
         logging.info("Created subscription: %s", sub)
-        last_subscription = sub
+        last_subscription = subs[0]
         while True:
             exp_str = last_subscription.get("expirationDateTime")
             expiration = datetime.fromisoformat(exp_str.replace("Z", "+00:00"))
