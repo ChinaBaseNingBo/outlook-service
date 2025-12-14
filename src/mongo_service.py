@@ -103,7 +103,7 @@ class MongoDBClient:
                 attachment_content,
                 filename=filename,
                 contentType=content_type,
-                email_id=email_id,
+                emailId=email_id,
                 attachment_id=id,
                 time=time,
             )
@@ -114,7 +114,7 @@ class MongoDBClient:
                 "attachmentId": str(id),
                 "filename": filename,
                 "contentType": content_type,
-                "gridfs_id": gridfs_id,
+                "gridfsId": gridfs_id,
                 "time": time,
             }
             collection.insert_one(attachment_doc)
