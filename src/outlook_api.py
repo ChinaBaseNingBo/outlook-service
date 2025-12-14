@@ -141,7 +141,7 @@ class OutlookAPI:
             if "Blue category" in cats:
                 email_id = email.get("id")
                 attachment = self.get_attachment_by_email_id(email_id)
-                process_attachment = self.process_attachment_from_email(attachment[0]) if attachment else None
+                process_attachment = self.process_attachment_from_email(attachment[0], email_id) if attachment else None
                 processed_emails["shuchuang_emails"].append(process_attachment)
             elif "Green category" in cats:
                 processed_email = self.process_message_from_email(email)
@@ -194,10 +194,11 @@ class OutlookAPI:
         }
         return processed_email
     
-    def process_attachment_from_email(self, attachment):
+    def process_attachment_from_email(self, attachment, email_id):
         """
         Process the attachment content of email
         attachment: attachment JSON object
+        email_id: ID of the email containing the attachment
         
         return: decoded content bytes
         """
@@ -213,6 +214,7 @@ class OutlookAPI:
             
             processed_attachment = {
                 "id": id,
+                "email_id": email_id,
                 "name": name,
                 "time": dt,
                 "content_type": content_type,
