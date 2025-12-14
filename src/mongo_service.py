@@ -91,22 +91,8 @@ class MongoDBClient:
             
             metaId = f"{email_id}:{id}"
             
-            if not id:
+            if not id or not email_id:
                 continue
-            
-            if collection.find_one({"_id": metaId}):
-                logging.info("Attachment with id %s already exists. Skipping.", id)
-                continue
-            
-            
-            gridfs_id = fs.put(
-                attachment_content,
-                filename=filename,
-                contentType=content_type,
-                emailId=email_id,
-                attachment_id=id,
-                time=time,
-            )
             
             attachment_doc = {
                 "_id": metaId,
@@ -114,10 +100,34 @@ class MongoDBClient:
                 "attachmentId": str(id),
                 "filename": filename,
                 "contentType": content_type,
-                "gridfsId": gridfs_id,
-                "time": time,
+                "createdAt": time,
             }
-            collection.insert_one(attachment_doc)
+            
+            res = collection.update_one(
+                {"_id": metaId},
+                {"$setOnInsert": attachment_doc},
+                upsert=True
+            )
+            
+            if res.upserted_id is None:
+                # Duplicate, skip
+                continue
+            
+            gridfsId = fs.put(
+                attachment_content,
+                _id=metaId,
+                filename=filename,
+                contentType=content_type,
+                emailId=str(email_id),
+                attachment_id=str(id),
+                time=time,
+            )
+            
+            collection.update_one(
+                {"_id": metaId},
+                {"$set": {"gridfsId": gridfsId}}
+            )
+            
             inserted += 1
 
         logging.info("Inserted %d new attachments (skipped duplicates).", inserted)
