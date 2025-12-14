@@ -83,27 +83,35 @@ class MongoDBClient:
 
         for attachment in attachments:
             id = attachment.get("id")
+            email_id = attachment.get("email_id")
             attachment_content = attachment.get("content")
             filename = attachment.get("name")
             content_type = attachment.get("content_type")
             time = attachment.get("time")
             
-            if collection.find_one({"_id": str(id)}):
-                logging.info("Attachment with id %s already exists. Skipping.", id)
-                continue
+            metaId = f"{email_id}:{id}"
             
             if not id:
                 continue
+            
+            if collection.find_one({"_id": metaId}):
+                logging.info("Attachment with id %s already exists. Skipping.", id)
+                continue
+            
             
             gridfs_id = fs.put(
                 attachment_content,
                 filename=filename,
                 contentType=content_type,
-                messageId=str(id)
+                email_id=email_id,
+                attachment_id=id,
+                time=time,
             )
             
             attachment_doc = {
-                "_id": str(id),
+                "_id": metaId,
+                "emailId": str(email_id),
+                "attachmentId": str(id),
                 "filename": filename,
                 "contentType": content_type,
                 "gridfs_id": gridfs_id,
