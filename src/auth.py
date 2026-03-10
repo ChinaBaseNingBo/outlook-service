@@ -53,7 +53,7 @@ class AuthManager:
                 raise Exception("Failed to create device flow. Err: %s" % json.dumps(flow, indent=4))
             logging.info("Go to this URL: %s", flow["verification_uri"])
             logging.info("And enter the code: %s", flow["user_code"])
-            logging.info("Enter the email address: chinabaseningbo@outlook.com .")
+            logging.info("Enter the email address: chinabaseningbo2@outlook.com .")
             logging.info("Enter the received code to authenticate.")
             result = self.app.acquire_token_by_device_flow(flow)
                         
