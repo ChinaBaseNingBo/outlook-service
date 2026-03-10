@@ -41,23 +41,28 @@ class OutlookService:
     
     def subscription_lifecycle(self, callback_url, renew_margin_minutes=60):
         """
-        Manage subscription lifecycle: create or extend
-        callback_url: The URL to receive notifications
-        subscription_id: The ID of the subscription to extend (if any)
+        Manage subscription lifecycle: create, monitor, and extend all subscriptions.
+        :param callback_url: The URL to receive notifications
+        :param renew_margin_minutes: Minutes before expiration to trigger renewal
         """
         subs = self.create_subscription(callback_url)
-        logging.info("Created subscription: %s", subs)
-        last_subscription = subs[0]
+        logging.info("Created %d subscription(s): %s", len(subs), subs)
+
         while True:
-            exp_str = last_subscription.get("expirationDateTime")
-            expiration = datetime.fromisoformat(exp_str.replace("Z", "+00:00"))
-            minutes_left = (expiration - datetime.now(timezone.utc)).total_seconds() / 60
+            for i, sub in enumerate(subs):
+                exp_str = sub.get("expirationDateTime")
+                expiration = datetime.fromisoformat(exp_str.replace("Z", "+00:00"))
+                minutes_left = (expiration - datetime.now(timezone.utc)).total_seconds() / 60
 
-            logging.info("[Service] Subscription %s expires in %.1f minutes", last_subscription['id'], minutes_left)
+                logging.info("[Service] Subscription %d/%d (%s) expires in %.1f minutes",
+                             i + 1, len(subs), sub['id'], minutes_left)
 
-            if minutes_left <= renew_margin_minutes:
-                logging.info("[Service] Renewing subscription...")
-                last_subscription = self.renew_subscription(last_subscription["id"])
-                logging.info("[Service] New expiration: %s", last_subscription["expirationDateTime"])
+                if minutes_left <= renew_margin_minutes:
+                    logging.info("[Service] Renewing subscription %s ...", sub['id'])
+                    try:
+                        subs[i] = self.extend_subscription(sub["id"])
+                        logging.info("[Service] New expiration: %s", subs[i]["expirationDateTime"])
+                    except Exception:
+                        logging.exception("[Service] Failed to renew subscription %s, will retry next cycle", sub['id'])
 
             time.sleep(300)  # check every 5 minutes
