@@ -1,5 +1,9 @@
 .env
 __pycache__/
+*.pyc
 .venv/
+.vscode/
+certs/
+msal_cache.bin
 ssl.key
 ssl.pem
