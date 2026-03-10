@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 .vscode/
 certs/
+example/
 msal_cache.bin
 ssl.key
 ssl.pem
