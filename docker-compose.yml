@@ -8,6 +8,8 @@ services:
 
     container_name: outlook_app
     command: python -m src.app
+    volumes:
+      - ./msal_cache.bin:/usr/local/app/msal_cache.bin
     expose:
       - "8000"
 
