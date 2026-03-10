@@ -155,9 +155,11 @@ class OutlookAPI:
 
             if folder_name == 'Shuchuang':
                 email_id = email.get('id')
-                attachment = self.get_attachment_by_email_id(email_id)
-                process_attachment = self.process_attachment_from_email(attachment[0], email_id) if attachment else None
-                processed_emails['shuchuang_emails'].append(process_attachment)
+                attachments = self.get_attachment_by_email_id(email_id)
+                for att in (attachments or []):
+                    processed = self.process_attachment_from_email(att, email_id)
+                    if processed:
+                        processed_emails['shuchuang_emails'].append(processed)
             elif folder_name == 'Bloomberg':
                 processed_email = self.process_message_from_email(email)
                 processed_emails['bloomberg_emails'].append(processed_email)

@@ -82,6 +82,8 @@ class MongoDBClient:
         inserted = 0
 
         for attachment in attachments:
+            if attachment is None:
+                continue
             id = attachment.get("id")
             email_id = attachment.get("email_id")
             attachment_content = attachment.get("content")
