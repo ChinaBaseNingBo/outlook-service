@@ -48,15 +48,20 @@ class OutlookAPI:
         return response.json()
 
     def get_user_folder_ids(self):
+        """Return list of target folder IDs and cache folder_id → name mapping."""
         url = f"{OUTLOOK_URL}/me/mailFolders"
         response = requests.get(url, headers=self._auth_headers())
         folders = response.json().get('value', [])
-        folder_ids = []
+        folder_ids: list[str] = []
+        self.folder_map: dict[str, str] = {}
         for folder in folders:
-            if folder.get('displayName') == 'Bloomberg' or folder.get('displayName') == 'Shuchuang':
-                folder_ids.append(folder.get('id'))
-                
-        return folder_ids if len(folder_ids) != 0 else None
+            name = folder.get('displayName', '')
+            if name in ('Bloomberg', 'Shuchuang'):
+                fid = folder.get('id')
+                folder_ids.append(fid)
+                self.folder_map[fid] = name
+
+        return folder_ids if folder_ids else None
     
 
     def get_email_by_resource(self, resource):
@@ -127,25 +132,35 @@ class OutlookAPI:
     
     def process_emails(self, emails):
         """
-        Process emails based on categories
-        emails: list of email JSON objects
-        
-        return: dict of processed emails
+        Process emails based on parent folder (falls back to category tags).
+        :param emails: list of email JSON objects
+        :return: dict of processed emails
         """
         processed_emails = {
             "bloomberg_emails": [],
             "shuchuang_emails": [],
         }
+        folder_map = getattr(self, 'folder_map', {})
         for email in emails:
-            cats = email.get("categories", [])
-            if "Blue category" in cats:
-                email_id = email.get("id")
+            parent_id = email.get('parentFolderId', '')
+            folder_name = folder_map.get(parent_id, '')
+
+            # Fallback to category tags for backwards compatibility
+            if not folder_name:
+                cats = email.get('categories', [])
+                if 'Blue category' in cats:
+                    folder_name = 'Shuchuang'
+                elif 'Green category' in cats:
+                    folder_name = 'Bloomberg'
+
+            if folder_name == 'Shuchuang':
+                email_id = email.get('id')
                 attachment = self.get_attachment_by_email_id(email_id)
                 process_attachment = self.process_attachment_from_email(attachment[0], email_id) if attachment else None
-                processed_emails["shuchuang_emails"].append(process_attachment)
-            elif "Green category" in cats:
+                processed_emails['shuchuang_emails'].append(process_attachment)
+            elif folder_name == 'Bloomberg':
                 processed_email = self.process_message_from_email(email)
-                processed_emails["bloomberg_emails"].append(processed_email)
+                processed_emails['bloomberg_emails'].append(processed_email)
         return processed_emails
     
     def save_emails_to_db(self, emails):
@@ -234,7 +249,7 @@ class OutlookAPI:
         for folder_id in folder_ids:  
             url = f"{OUTLOOK_URL}/me/mailFolders/{folder_id}/messages"
             params = {
-                "$select": "id,subject,receivedDateTime,bodyPreview,body,from",
+                "$select": "id,subject,receivedDateTime,bodyPreview,body,from,parentFolderId,categories",
                 "$orderby": "receivedDateTime desc",
                 "$top": 50,
                 "$filter": (
