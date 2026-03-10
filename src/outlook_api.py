@@ -245,10 +245,10 @@ class OutlookAPI:
         if not folder_ids:
             logging.error("No target folder found for fetching emails.")
             return []
-        
+
         emails = []
-        
-        for folder_id in folder_ids:  
+
+        for folder_id in folder_ids:
             url = f"{OUTLOOK_URL}/me/mailFolders/{folder_id}/messages"
             params = {
                 "$select": "id,subject,receivedDateTime,bodyPreview,body,from,parentFolderId,categories",
@@ -259,7 +259,13 @@ class OutlookAPI:
                     f"and receivedDateTime lt {iso_z(end)}"
                 ),
             }
-            response = requests.get(url, headers=self._auth_headers(), params=params)
-            emails.append(response.json().get('value', []))
-            
+            folder_emails: list = []
+            while url:
+                response = requests.get(url, headers=self._auth_headers(), params=params)
+                data = response.json()
+                folder_emails.extend(data.get('value', []))
+                url = data.get('@odata.nextLink')
+                params = None  # nextLink already includes query params
+            emails.append(folder_emails)
+
         return emails
